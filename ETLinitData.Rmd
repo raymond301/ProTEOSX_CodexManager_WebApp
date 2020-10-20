@@ -10,9 +10,8 @@ library(RSQLite)
 library(readxl)
 library(officer)
 
-
-con <- dbConnect(drv=RSQLite::SQLite(), dbname='CodexProjectTracking/projectruns.sqlite')
-dbListTables() 
+#con <- dbConnect(drv=RSQLite::SQLite(), dbname='CodexProjectTracking/projectruns.sqlite')
+#dbListTables() 
 ```
 
 
@@ -37,6 +36,7 @@ f <- pptx_summary("data/2020-05-19_234357-2x TMA_Bleached_13May2020-reg001.pptx"
 
 ## Slide 1
 t <- f %>% filter(slide_id == 1 & id == "3")
+Acquisition_Name <- t$text[1]
 pptTitle <- paste(t$text, collapse = "|")
 
 ## Slide 2
@@ -51,6 +51,48 @@ t <- data.frame(lapply(t, as.character), stringsAsFactors=FALSE)[]
 ProcessingParametersTable <- t[2,]
 colnames(ProcessingParametersTable) <-  paste0('ProcessingParameters_',  gsub(' ','_',trimws(gsub(' \\(µM\\)','',gsub("[\r\n]", "", gsub("[#\\/]",'',t[1,]))))))
 
+summarySlides <- f %>% filter(grepl("^Summary Table",text))
+
+#i = summarySlides$slide_id[1]
+allSummary <- data.frame()
+for(i in summarySlides$slide_id){
+  t <- f %>% filter(slide_id == i & content_type == 'table cell') %>% select(text,cell_id,row_id) %>% spread(cell_id,text) 
+  allSummary <- rbind(allSummary,t)
+}
+
+title <- allSummary %>% filter(row_id == 1) %>% slice(1)
+allSummary <- allSummary %>% filter(row_id > 1)
+colnames(allSummary) <- paste0('Metrics_',  gsub(' ','_',trimws(gsub(' \\(µM\\)','',gsub("[\r\n]", "", gsub("[%#\\/]",'', title[1,]))))))
+
+
+metricsTable1 <- cbind(Acquisition_Name,pptTitle,ExperimentMetadataTable,ProcessingParametersTable,allSummary)
+
+```
+
+
+
+
+```{r prepare_ppt2, fig.width=6, fig.height=3 }
+#f <- read_pptx("data/2020-05-19_234357-2x TMA_Bleached_13May2020-reg001.pptx")
+f <- pptx_summary("data/2020-05-19_235051-2x TMA_Bleached_13May2020-reg002.pptx")
+# class(f)
+
+## Slide 1
+t <- f %>% filter(slide_id == 1 & id == "3")
+Acquisition_Name <- t$text[1]
+pptTitle <- paste(t$text, collapse = "|")
+
+## Slide 2
+t <-  f %>% filter(slide_id == 2 & content_type == 'table cell') %>% select(text,cell_id,row_id) %>% spread(cell_id,text) %>% filter(row_id > 1) %>% select(-row_id) %>% t() %>% as.data.frame()
+t <- data.frame(lapply(t, as.character), stringsAsFactors=FALSE)[]
+ExperimentMetadataTable <- t[2,]
+colnames(ExperimentMetadataTable) <- paste0('ExperimentMetadata_',  gsub(' ','_',trimws(gsub(' \\(µM\\)','',gsub("[\r\n]", "", gsub("[#\\/]",'',t[1,]))))))
+
+## Slide 2
+t <-  f %>% filter(slide_id == 3 & content_type == 'table cell') %>% select(text,cell_id,row_id) %>% spread(cell_id,text) %>% filter(row_id > 1) %>% select(-row_id) %>% t() %>% as.data.frame()
+t <- data.frame(lapply(t, as.character), stringsAsFactors=FALSE)[]
+ProcessingParametersTable <- t[2,]
+colnames(ProcessingParametersTable) <-  paste0('ProcessingParameters_',  gsub(' ','_',trimws(gsub(' \\(µM\\)','',gsub("[\r\n]", "", gsub("[#\\/]",'',t[1,]))))))
 
 summarySlides <- f %>% filter(grepl("^Summary Table",text))
 
@@ -65,4 +107,67 @@ title <- allSummary %>% filter(row_id == 1) %>% slice(1)
 allSummary <- allSummary %>% filter(row_id > 1)
 colnames(allSummary) <- paste0('Metrics_',  gsub(' ','_',trimws(gsub(' \\(µM\\)','',gsub("[\r\n]", "", gsub("[%#\\/]",'', title[1,]))))))
 
+
+metricsTable2 <- cbind(Acquisition_Name,pptTitle,ExperimentMetadataTable,ProcessingParametersTable,allSummary)
+
 ```
+
+
+
+
+```{r prepare_ppt2, fig.width=6, fig.height=3 }
+#f <- read_pptx("data/2020-05-19_234357-2x TMA_Bleached_13May2020-reg001.pptx")
+f <- pptx_summary("data/2020-05-19_235742-2x TMA_Bleached_13May2020-reg003.pptx")
+# class(f)
+
+## Slide 1
+t <- f %>% filter(slide_id == 1 & id == "3")
+Acquisition_Name <- t$text[1]
+pptTitle <- paste(t$text, collapse = "|")
+
+## Slide 2
+t <-  f %>% filter(slide_id == 2 & content_type == 'table cell') %>% select(text,cell_id,row_id) %>% spread(cell_id,text) %>% filter(row_id > 1) %>% select(-row_id) %>% t() %>% as.data.frame()
+t <- data.frame(lapply(t, as.character), stringsAsFactors=FALSE)[]
+ExperimentMetadataTable <- t[2,]
+colnames(ExperimentMetadataTable) <- paste0('ExperimentMetadata_',  gsub(' ','_',trimws(gsub(' \\(µM\\)','',gsub("[\r\n]", "", gsub("[#\\/]",'',t[1,]))))))
+
+## Slide 2
+t <-  f %>% filter(slide_id == 3 & content_type == 'table cell') %>% select(text,cell_id,row_id) %>% spread(cell_id,text) %>% filter(row_id > 1) %>% select(-row_id) %>% t() %>% as.data.frame()
+t <- data.frame(lapply(t, as.character), stringsAsFactors=FALSE)[]
+ProcessingParametersTable <- t[2,]
+colnames(ProcessingParametersTable) <-  paste0('ProcessingParameters_',  gsub(' ','_',trimws(gsub(' \\(µM\\)','',gsub("[\r\n]", "", gsub("[#\\/]",'',t[1,]))))))
+
+summarySlides <- f %>% filter(grepl("^Summary Table",text))
+
+#i = summarySlides$slide_id[1]
+allSummary <- data.frame()
+for(i in summarySlides$slide_id){
+  t <- f %>% filter(slide_id == i & content_type == 'table cell') %>% select(text,cell_id,row_id) %>% spread(cell_id,text) 
+  allSummary <- rbind(allSummary,t)
+}
+
+title <- allSummary %>% filter(row_id == 1) %>% slice(1)
+allSummary <- allSummary %>% filter(row_id > 1)
+colnames(allSummary) <- paste0('Metrics_',  gsub(' ','_',trimws(gsub(' \\(µM\\)','',gsub("[\r\n]", "", gsub("[%#\\/]",'', title[1,]))))))
+
+
+metricsTable3 <- cbind(Acquisition_Name,pptTitle,ExperimentMetadataTable,ProcessingParametersTable,allSummary)
+
+```
+
+
+
+```{r merge_all, fig.width=6, fig.height=3 }
+metricsTables <- rbind(metricsTable1,metricsTable2,metricsTable3)
+
+allData <- merge(my_data,metricsTable,by.x = c("Acquisition_Name","ROI","Cycle","Channel"),by.y = c("Acquisition_Name","Metrics_Reg","Metrics_Cyc","Metrics_Ch"),all = T)
+
+saveRDS(allData,'CodexProjectTracking/database.rds')
+```
+
+
+
+
+
+
+

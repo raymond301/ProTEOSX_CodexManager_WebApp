@@ -40,3 +40,4 @@ vignettes/*.pdf
 
 ## Project Data Space
 data/*
+database.rds
