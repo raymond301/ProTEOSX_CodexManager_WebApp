@@ -1,33 +1,24 @@
-#
-# This is the user-interface definition of a Shiny web application. You can
-# run the application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
+#######################################################	
+# Define general layout tag list	
+#######################################################
 
-library(shiny)
+headerTagList <- list(	
+    tags$style(type = "text/css", ".navbar .navbar-nav {float: right; font-size: 14px} .navbar .navbar-nav li a {font-size: 14px} .nav-tabs {font-size: 12px}"),
+    tags$base(target = "_blank")	
+)
 
-# Define UI for application that draws a histogram
-shinyUI(fluidPage(
+#######################################################
+# Define the full user-interface
+#######################################################
 
-    # Application title
-    titlePanel("Old Faithful Geyser Data"),
+ui <- navbarPage(
+    title = strong("Codex Tracking"), selected = "Home",	
+    tabPanel("Summary", homepage, icon = icon("home")),	
+    #tabPanel("Markers", freezerpage, icon = icon("clipboard")),	
+    #tabPanel("About", aboutpage, icon = icon("info-circle")),	
+    header = headerTagList,	
+    collapsible = TRUE,	inverse = TRUE,
+    windowTitle = "Database"
+)
 
-    # Sidebar with a slider input for number of bins
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
-        ),
-
-        # Show a plot of the generated distribution
-        mainPanel(
-            plotOutput("distPlot")
-        )
-    )
-))
+shinyUI(ui)
