@@ -1,0 +1,125 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(RMariaDB)
+library(officer)
+library(RCurl)
+library(png)
+library(RColorBrewer)
+### for resizing PPT images
+library(magick)
+
+# increase max upload file size
+options(shiny.maxRequestSize = 10*1024^2)
+# increase the ppt upload size to accept huge files
+options(shiny.maxRequestSize=300*1024^2) # ~300MB max
+
+# Define server logic required to invert list select
+`%nin%` <- Negate(`%in%`)
+
+source("Db/helper_database.R")
+source("Db/helper_ppt_summary.R")
+
+## Grab a file from ARCHIVE:
+## scp mforgehn5:/research/bsi/archive/PI/Villasboas-Bisneto_Jose_m113984/tertiary/s214023.Pipeline_Pilot/integrated/20210429_MM/*-reg001.pptx .
+# Enter PASSCODE:
+
+mariapw <- Sys.getenv('MARIADB_JCVB_PW')
+mariaus <- Sys.getenv('MARIADB_JCVB_USER')
+mariaurl <- Sys.getenv('MARIADB_HOST')
+fCon <- dbConnect(drv=RMariaDB::MariaDB(), dbname="VillasboasLabCodex", username=mariaus, host=mariaurl, password=mariapw)
+
+```
+
+
+
+```{r loading-functions-01, warning=FALSE, fig.width=9, fig.height=7, message=FALSE}
+datapath <- paste0("Data/",grep('reg010', list.files("Data"),value = T))
+
+## Look up in database
+# 20210429_MM = 28
+# SELECT * FROM rois WHERE acquisition_id = 28 ORDER BY name;
+# MariaDB [VillasboasLabCodex]> SELECT * FROM multiplex_metrics WHERE acquisition_id = 42 AND roi_id = 555;
+ppt_find_aquisition_id <- 42
+ppt_find_ROI_id <- 555
+
+start_time <- Sys.time()
+f <- pptx_summary(datapath)
+runInfo <- cbind(getTitles(f),getMeta(f),getProcessing(f))
+## send output to user to confirm before loading to DB?? Could be too difficult right now....Save then show...delete later?
+runInfo$acquisition_id <- ppt_find_aquisition_id
+runInfo$roi_id <- ppt_find_ROI_id
+runInfo
+dbWriteTable(fCon, "processor_configurations", runInfo, append=TRUE)
+    
+```
+
+```{r loading-functions-02, warning=FALSE, fig.width=9, fig.height=7, message=FALSE}
+multiplexMetrics <- getSummary(f)
+## Cannot to tie to Multiplex Table...it is possible there could be differences...need to handle that in the app.
+multiplexMetrics$acquisition_id <- ppt_find_aquisition_id
+multiplexMetrics$roi_id <- ppt_find_ROI_id
+multiplexMetrics
+
+dbWriteTable(fCon, "multiplex_metrics", multiplexMetrics, append=TRUE)
+metricsTable <- getMetericsTable(ppt_find_aquisition_id, ppt_find_ROI_id)
+print(paste("multiplexMetrics N rows: ",nrow(metricsTable) ))
+```
+
+```{r loading-functions-03, warning=FALSE, fig.width=9, fig.height=7, message=FALSE}
+doc <- read_pptx(datapath)
+summarySlides <- f %>% filter(grepl("^Summary Table",text)) %>% arrange(desc(slide_id))
+stSlide <- summarySlides[1,]$slide_id+1 ## Detailed images start after this...
+cnt=0
+# i=15
+for(i in stSlide:max(f$slide_id)){
+  cnt=cnt+1
+  print(paste("Slide #",i)) 
+  slideAB <- f %>% filter(slide_id == i & content_type == 'paragraph') %>% tail(1)
+  timg <- f %>% filter(slide_id == i & content_type == 'image')
+  
+  media_file <- timg[1,]$media_file ### 1 = histogram
+  png_file <- tempfile(fileext = ".png")
+  media_extract(doc, path = media_file, target = png_file)
+  pp <- readPNG(png_file,info=TRUE)
+  histoDimensions <- paste(unlist(dim(pp))[1:2],collapse = "x")
+  ## read temp file as a binary string
+  #histogram_binary <- paste(readBin(png_file, what="raw", n=1e6), collapse="")
+  histogram64 <- base64Encode(readBin(png_file, "raw", file.info(png_file)[1, "size"]), "txt")
+  #class(readBin(png_file, what="raw", n=1e6))
+  #length(readBin(png_file, what="raw", n=1e6))
+  
+  media_file <- timg[2,]$media_file ### 2 = full size AB slide image
+  png_file2 <- tempfile(fileext = ".png")
+  media_extract(doc, path = media_file, target = png_file2)
+  ## Resize this PNG image to save space...
+  imgH <- image_read(png_file2)
+  nX <- as.integer( image_info(imgH)$width / 4.7 )
+  imgH <- image_scale(imgH, nX)
+  image_write(imgH, path = png_file2)
+  ## Now read-back manipulated image
+  pp <- readPNG(png_file2,info=TRUE)
+  rawDimensions <- paste(unlist(dim(pp))[1:2],collapse = "x") # RAW: ~ "2016x2688"
+  ## read temp file as a binary string
+  #raw_binary <- paste(readBin(png_file2, what="raw", n=1e6), collapse="")
+  raw64 <- base64Encode(readBin(png_file2, "raw", file.info(png_file2)[1, "size"]), "txt")
+  #class(raw_binary)
+  singleEntry <- data.frame('title' = slideAB[1,]$text, 'histogram' = as.character(histogram64), 'histogram_dimensions' = histoDimensions,
+                            'raw_image'=as.character(raw64), 'raw_dimensions'=rawDimensions,  'multiplex_metrics_id'= metricsTable[cnt,]$id) 
+  print(singleEntry)
+  #dbWriteTable(fCon, "metric_images", singleEntry, append=TRUE)
+}
+
+end_time <- Sys.time()
+
+print(paste("PPT Preparations:",round(difftime(end_time, start_time, units = "mins"),3),"mins"))
+
+```
+
+
+
